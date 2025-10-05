@@ -11,6 +11,9 @@ class ViewNotePage extends StatefulWidget {
 
 class _ViewNotePageState extends State<ViewNotePage> {
   late Box notesBox;
+  late Box settingsBox;
+  late Color accentColor;
+
   late TextEditingController titleController;
   late TextEditingController contentController;
 
@@ -18,6 +21,19 @@ class _ViewNotePageState extends State<ViewNotePage> {
   void initState() {
     super.initState();
     notesBox = Hive.box('notesBox');
+    settingsBox = Hive.box('settingsBox');
+
+    accentColor = Color(
+      settingsBox.get('accentColor', defaultValue: Colors.orangeAccent.value),
+    );
+
+    // Listen for dynamic accent color changes
+    settingsBox.watch(key: 'accentColor').listen((event) {
+      setState(() {
+        accentColor = Color(event.value);
+      });
+    });
+
     final note = Map<String, dynamic>.from(notesBox.get(widget.noteKey));
     titleController = TextEditingController(text: note['title']);
     contentController = TextEditingController(text: note['content']);
@@ -27,7 +43,7 @@ class _ViewNotePageState extends State<ViewNotePage> {
     notesBox.put(widget.noteKey, {
       "title": titleController.text.isEmpty ? "Untitled" : titleController.text,
       "content": contentController.text,
-      "createdAt": DateTime.now().toIso8601String(), // update timestamp
+      "createdAt": DateTime.now().toIso8601String(),
       "isFavorite": false,
     });
     Navigator.pop(context);
@@ -75,11 +91,11 @@ class _ViewNotePageState extends State<ViewNotePage> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete, color: Colors.redAccent),
+            icon: Icon(Icons.delete, color: Colors.redAccent),
             onPressed: _deleteNote,
           ),
           IconButton(
-            icon: const Icon(Icons.save, color: Colors.greenAccent),
+            icon: Icon(Icons.save, color: accentColor),
             onPressed: _saveNote,
           ),
         ],
@@ -117,8 +133,8 @@ class _ViewNotePageState extends State<ViewNotePage> {
                       child: ElevatedButton.icon(
                         onPressed: _saveNote,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.greenAccent.withOpacity(0.8),
-                          foregroundColor: Colors.black,
+                          backgroundColor: accentColor.withOpacity(0.8),
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

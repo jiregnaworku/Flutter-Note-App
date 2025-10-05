@@ -18,6 +18,8 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
 
   bool _isSaving = false;
   late final Box<Note> _notesBox;
+  late final Box settingsBox;
+  late Color accentColor;
   late final AnimationController _scaleController;
 
   @override
@@ -32,8 +34,19 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
       value: 1.0,
     );
 
-    // ✅ Use the exact same name you opened in main.dart ("notesbox")
-    _notesBox = Hive.box<Note>('notesbox');
+    _notesBox = Hive.box<Note>('notesBox');
+    settingsBox = Hive.box('settingsBox');
+
+    accentColor = Color(
+      settingsBox.get('accentColor', defaultValue: Colors.orangeAccent.value),
+    );
+
+    // Listen for dynamic accent color changes
+    settingsBox.watch(key: 'accentColor').listen((event) {
+      setState(() {
+        accentColor = Color(event.value);
+      });
+    });
 
     if (widget.note != null) {
       _titleController.text = widget.note!.title;
@@ -101,6 +114,11 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
             width: 180,
             height: 180,
             repeat: false,
+            delegates: LottieDelegates(
+              values: [
+                ValueDelegate.color(const ['**'], value: accentColor),
+              ],
+            ),
             onLoaded: (composition) {
               Future.delayed(composition.duration, () {
                 if (Navigator.canPop(context)) Navigator.of(context).pop();
@@ -108,9 +126,9 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
             },
           );
         } catch (_) {
-          animationWidget = const Icon(
+          animationWidget = Icon(
             Icons.check_circle,
-            color: Colors.green,
+            color: accentColor,
             size: 120,
           );
           Future.delayed(const Duration(seconds: 1), () {
@@ -207,8 +225,8 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
                       onTapCancel: () => _scaleController.forward(),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFE94057), Color(0xFFF27121)],
+                          gradient: LinearGradient(
+                            colors: [accentColor, accentColor.withOpacity(0.8)],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ),

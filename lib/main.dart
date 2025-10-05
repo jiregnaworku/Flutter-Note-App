@@ -21,8 +21,32 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late Box settingsBox;
+  late Color accentColor;
+
+  @override
+  void initState() {
+    super.initState();
+    settingsBox = Hive.box('settingsBox');
+    accentColor = Color(
+      settingsBox.get('accentColor', defaultValue: Colors.orangeAccent.value),
+    );
+
+    // Listen for color changes dynamically
+    settingsBox.watch(key: 'accentColor').listen((event) {
+      setState(() {
+        accentColor = Color(event.value);
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +54,15 @@ class MyApp extends StatelessWidget {
       title: 'My Notes App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
+        colorScheme: ColorScheme.fromSeed(seedColor: accentColor),
         scaffoldBackgroundColor: const Color(0xFF121212),
         appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF1E1E1E)),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: accentColor,
+        ),
+        switchTheme: SwitchThemeData(
+          thumbColor: WidgetStateProperty.all(accentColor),
+        ),
       ),
       home: const LockHandler(),
     );

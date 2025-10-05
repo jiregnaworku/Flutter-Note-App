@@ -1,4 +1,3 @@
-// lib/screens/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:math';
@@ -46,11 +45,24 @@ class _HomePageState extends State<HomePage>
     Colors.blue.shade300,
   ];
 
+  late final Box settingsBox;
+  late Color accentColor;
+
   @override
   void initState() {
     super.initState();
-    // Access the already opened box from main.dart
     _notesBox = Hive.box<Note>('notesBox');
+    settingsBox = Hive.box('settingsBox');
+    accentColor = Color(
+      settingsBox.get('accentColor', defaultValue: Colors.orangeAccent.value),
+    );
+
+    // Listen to color changes dynamically
+    settingsBox.watch(key: 'accentColor').listen((event) {
+      setState(() {
+        accentColor = Color(event.value);
+      });
+    });
   }
 
   @override
@@ -195,7 +207,7 @@ class _HomePageState extends State<HomePage>
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.orangeAccent,
+        backgroundColor: accentColor,
         child: const Icon(Icons.add, color: Colors.white),
         onPressed: () => _openNotePage(),
       ),
