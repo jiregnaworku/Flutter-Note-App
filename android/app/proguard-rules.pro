@@ -15,3 +15,13 @@
 -dontwarn kotlin.**
 -dontwarn javax.annotation.**
 -dontwarn org.jetbrains.annotations.**
+
+# Flutter deferred components / Play Core keep rules to avoid R8 missing classes
+-dontwarn com.google.android.play.core.**
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-keep class com.google.android.play.core.** { *; }
+-keep class com.google.android.play.core.splitcompat.** { *; }
+-keep class com.google.android.play.core.splitinstall.** { *; }
+-keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
+-keep class io.flutter.embedding.android.FlutterPlayStoreSplitApplication { *; }

@@ -212,9 +212,7 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final isEditing = widget.note != null;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
+    return Scaffold(
         body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
