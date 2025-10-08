@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'home_page.dart';
+import 'note_page.dart';
 
 class ViewNotePage extends StatefulWidget {
-  final dynamic noteKey;
-  const ViewNotePage({super.key, required this.noteKey});
+  final Note note;
+  const ViewNotePage({super.key, required this.note});
 
   @override
   State<ViewNotePage> createState() => _ViewNotePageState();
 }
 
 class _ViewNotePageState extends State<ViewNotePage> {
-  late Box notesBox;
   late Box settingsBox;
   late Color accentColor;
 
@@ -20,7 +21,6 @@ class _ViewNotePageState extends State<ViewNotePage> {
   @override
   void initState() {
     super.initState();
-    notesBox = Hive.box('notesBox');
     settingsBox = Hive.box('settingsBox');
 
     accentColor = Color(
@@ -34,23 +34,12 @@ class _ViewNotePageState extends State<ViewNotePage> {
       });
     });
 
-    final note = Map<String, dynamic>.from(notesBox.get(widget.noteKey));
-    titleController = TextEditingController(text: note['title']);
-    contentController = TextEditingController(text: note['content']);
-  }
-
-  void _saveNote() {
-    notesBox.put(widget.noteKey, {
-      "title": titleController.text.isEmpty ? "Untitled" : titleController.text,
-      "content": contentController.text,
-      "createdAt": DateTime.now().toIso8601String(),
-      "isFavorite": false,
-    });
-    Navigator.pop(context);
+    titleController = TextEditingController(text: widget.note.title);
+    contentController = TextEditingController(text: widget.note.content);
   }
 
   void _deleteNote() {
-    notesBox.delete(widget.noteKey);
+    widget.note.delete();
     Navigator.pop(context);
   }
 
@@ -59,6 +48,7 @@ class _ViewNotePageState extends State<ViewNotePage> {
     required String hint,
     int maxLines = 1,
     bool expand = false,
+    bool readOnly = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -70,6 +60,7 @@ class _ViewNotePageState extends State<ViewNotePage> {
         controller: controller,
         maxLines: expand ? null : maxLines,
         expands: expand,
+        readOnly: readOnly,
         cursorColor: Colors.white,
         style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
@@ -86,7 +77,7 @@ class _ViewNotePageState extends State<ViewNotePage> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("View & Edit Note"),
+        title: const Text("View Note"),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -95,8 +86,20 @@ class _ViewNotePageState extends State<ViewNotePage> {
             onPressed: _deleteNote,
           ),
           IconButton(
-            icon: Icon(Icons.save, color: accentColor),
-            onPressed: _saveNote,
+            icon: Icon(Icons.edit, color: accentColor),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotePage(note: widget.note),
+                ),
+              );
+              // Refresh controllers after editing
+              setState(() {
+                titleController.text = widget.note.title;
+                contentController.text = widget.note.content;
+              });
+            },
           ),
         ],
       ),
@@ -117,6 +120,7 @@ class _ViewNotePageState extends State<ViewNotePage> {
                   controller: titleController,
                   hint: "Title",
                   maxLines: 1,
+                  readOnly: true,
                 ),
                 const SizedBox(height: 20),
                 Expanded(
@@ -124,55 +128,8 @@ class _ViewNotePageState extends State<ViewNotePage> {
                     controller: contentController,
                     hint: "Start typing your note...",
                     expand: true,
+                    readOnly: true,
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _saveNote,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accentColor.withOpacity(0.8),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(Icons.save),
-                        label: const Text(
-                          "Save",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _deleteNote,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent.withOpacity(0.8),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(Icons.delete),
-                        label: const Text(
-                          "Delete",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),

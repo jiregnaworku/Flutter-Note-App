@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:lottie/lottie.dart';
 import 'home_page.dart';
 
 class NotePage extends StatefulWidget {
@@ -17,6 +16,8 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
   final TextEditingController _contentController = TextEditingController();
 
   bool _isSaving = false;
+  late String _initialTitle;
+  late String _initialContent;
   late final Box<Note> _notesBox;
   late final Box settingsBox;
   late Color accentColor;
@@ -52,6 +53,9 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
       _titleController.text = widget.note!.title;
       _contentController.text = widget.note!.content;
     }
+
+    _initialTitle = _titleController.text;
+    _initialContent = _contentController.text;
   }
 
   @override
@@ -102,41 +106,76 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
     }
   }
 
+  bool get _hasChanges =>
+      _titleController.text != _initialTitle ||
+      _contentController.text != _initialContent;
+
+  Future<bool> _onWillPop() async {
+    if (!_hasChanges) return true;
+
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+
+    if (title.isEmpty && content.isEmpty) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Discard note?'),
+          content: const Text('This note is empty. Do you want to discard it?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Discard')),
+          ],
+        ),
+      );
+      return discard == true;
+    }
+
+    try {
+      if (widget.note != null) {
+        widget.note!
+          ..title = title.isEmpty ? 'Untitled' : title
+          ..content = content
+          ..save();
+      } else {
+        final note = Note(title: title.isEmpty ? 'Untitled' : title, content: content);
+        await _notesBox.add(note);
+      }
+      return true;
+    } catch (_) {
+      final leave = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Leave without saving?'),
+          content: const Text('Failed to auto-save. Do you want to leave anyway?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Stay')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Leave')),
+          ],
+        ),
+      );
+      return leave == true;
+    }
+  }
+
   Future<void> _showSuccessAnimation() async {
+    // Lightweight success feedback without external assets
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        Widget animationWidget;
-        try {
-          animationWidget = Lottie.asset(
-            'assets/lottie/success.json',
-            width: 180,
-            height: 180,
-            repeat: false,
-            delegates: LottieDelegates(
-              values: [
-                ValueDelegate.color(const ['**'], value: accentColor),
-              ],
-            ),
-            onLoaded: (composition) {
-              Future.delayed(composition.duration, () {
-                if (Navigator.canPop(context)) Navigator.of(context).pop();
-              });
-            },
-          );
-        } catch (_) {
-          animationWidget = Icon(
-            Icons.check_circle,
-            color: accentColor,
-            size: 120,
-          );
-          Future.delayed(const Duration(seconds: 1), () {
-            if (Navigator.canPop(context)) Navigator.of(context).pop();
-          });
-        }
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (Navigator.canPop(context)) Navigator.of(context).pop();
+        });
         return Center(
-          child: Material(color: Colors.transparent, child: animationWidget),
+          child: Material(
+            color: Colors.transparent,
+            child: Icon(
+              Icons.check_circle,
+              color: accentColor,
+              size: 120,
+            ),
+          ),
         );
       },
     );
@@ -146,6 +185,7 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
     required TextEditingController controller,
     required String hint,
     int maxLines = 1,
+    bool expands = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -155,7 +195,8 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: TextField(
         controller: controller,
-        maxLines: maxLines,
+        maxLines: expands ? null : maxLines,
+        expands: expands,
         cursorColor: Colors.white,
         style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
@@ -171,8 +212,10 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final isEditing = widget.note != null;
 
-    return Scaffold(
-      body: Container(
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF3F2B96), Color(0xFF0CBABA)],
@@ -203,12 +246,14 @@ class _NotePageState extends State<NotePage> with TickerProviderStateMixin {
                   maxLines: 1,
                 ),
                 const SizedBox(height: 20),
-                _buildInputField(
-                  controller: _contentController,
-                  hint: "Content",
-                  maxLines: 6,
+                Expanded(
+                  child: _buildInputField(
+                    controller: _contentController,
+                    hint: "Content",
+                    expands: true,
+                  ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
                 SizedBox(
                   height: 56,
                   child: AnimatedBuilder(
