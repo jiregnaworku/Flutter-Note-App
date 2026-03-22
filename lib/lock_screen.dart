@@ -34,20 +34,21 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.lock, size: 80, color: Colors.white),
+              Icon(Icons.lock, size: 80, color: scheme.primary),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Enter PIN',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: scheme.onSurface,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -57,24 +58,22 @@ class _LockScreenState extends State<LockScreen> {
                 controller: _pinController,
                 keyboardType: TextInputType.number,
                 obscureText: true,
-                style: const TextStyle(color: Colors.white, fontSize: 20),
+                style: TextStyle(color: scheme.onSurface, fontSize: 20),
                 decoration: InputDecoration(
                   hintText: 'PIN',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                  hintStyle: TextStyle(color: scheme.onSurfaceVariant),
                   errorText: _error.isEmpty ? null : _error,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.white),
                   ),
-                  filled: true,
-                  fillColor: Colors.white12,
                 ),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _checkPin,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
+                  backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 40,
                     vertical: 14,
@@ -83,9 +82,9 @@ class _LockScreenState extends State<LockScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Unlock',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
+                  style: TextStyle(fontSize: 18, color: scheme.onPrimary),
                 ),
               ),
             ],

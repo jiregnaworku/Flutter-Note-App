@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'home_page.dart';
 import 'note_page.dart';
 
@@ -12,30 +11,21 @@ class ViewNotePage extends StatefulWidget {
 }
 
 class _ViewNotePageState extends State<ViewNotePage> {
-  late Box settingsBox;
-  late Color accentColor;
-
   late TextEditingController titleController;
   late TextEditingController contentController;
 
   @override
   void initState() {
     super.initState();
-    settingsBox = Hive.box('settingsBox');
-
-    accentColor = Color(
-      settingsBox.get('accentColor', defaultValue: Colors.orangeAccent.value),
-    );
-
-    // Listen for dynamic accent color changes
-    settingsBox.watch(key: 'accentColor').listen((event) {
-      setState(() {
-        accentColor = Color(event.value);
-      });
-    });
-
     titleController = TextEditingController(text: widget.note.title);
     contentController = TextEditingController(text: widget.note.content);
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    contentController.dispose();
+    super.dispose();
   }
 
   void _deleteNote() {
@@ -50,9 +40,11 @@ class _ViewNotePageState extends State<ViewNotePage> {
     bool expand = false,
     bool readOnly = false,
   }) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.25),
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -61,11 +53,11 @@ class _ViewNotePageState extends State<ViewNotePage> {
         maxLines: expand ? null : maxLines,
         expands: expand,
         readOnly: readOnly,
-        cursorColor: Colors.white,
-        style: const TextStyle(color: Colors.white, fontSize: 16),
+        cursorColor: scheme.primary,
+        style: TextStyle(color: scheme.onSurface, fontSize: 16),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+          hintStyle: TextStyle(color: scheme.onSurfaceVariant),
           border: InputBorder.none,
         ),
       ),
@@ -74,25 +66,19 @@ class _ViewNotePageState extends State<ViewNotePage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("View Note"),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        title: const Text('View Note'),
         actions: [
+          IconButton(icon: const Icon(Icons.delete), onPressed: _deleteNote),
           IconButton(
-            icon: Icon(Icons.delete, color: Colors.redAccent),
-            onPressed: _deleteNote,
-          ),
-          IconButton(
-            icon: Icon(Icons.edit, color: accentColor),
+            icon: Icon(Icons.edit, color: scheme.primary),
             onPressed: () async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => NotePage(note: widget.note),
-                ),
+                MaterialPageRoute(builder: (_) => NotePage(note: widget.note)),
               );
               // Refresh controllers after editing
               setState(() {
@@ -103,36 +89,27 @@ class _ViewNotePageState extends State<ViewNotePage> {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF3F2B96), Color(0xFF0CBABA)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _buildInputField(
-                  controller: titleController,
-                  hint: "Title",
-                  maxLines: 1,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              _buildInputField(
+                controller: titleController,
+                hint: 'Title',
+                maxLines: 1,
+                readOnly: true,
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _buildInputField(
+                  controller: contentController,
+                  hint: 'No content',
+                  expand: true,
                   readOnly: true,
                 ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: _buildInputField(
-                    controller: contentController,
-                    hint: "Start typing your note...",
-                    expand: true,
-                    readOnly: true,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

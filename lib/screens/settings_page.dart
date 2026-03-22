@@ -10,31 +10,17 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _lockEnabled = false;
+  bool _isDarkMode = true;
   final TextEditingController _pinController = TextEditingController();
 
   late final Box settingsBox;
-  Color _accentColor = Colors.orangeAccent;
-
-  final List<Color> availableColors = [
-    Colors.orangeAccent,
-    Colors.tealAccent,
-    Colors.purpleAccent,
-    Colors.blueAccent,
-    Colors.greenAccent,
-    Colors.redAccent,
-    Colors.amberAccent,
-  ];
 
   @override
   void initState() {
     super.initState();
     settingsBox = Hive.box('settingsBox');
     _lockEnabled = settingsBox.get('lockEnabled', defaultValue: false);
-    final savedColorValue = settingsBox.get(
-      'accentColor',
-      defaultValue: Colors.orangeAccent.value,
-    );
-    _accentColor = Color(savedColorValue);
+    _isDarkMode = settingsBox.get('isDarkMode', defaultValue: true);
   }
 
   void _toggleLock(bool value) async {
@@ -81,40 +67,9 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void _showColorPicker() async {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Choose App Accent Color"),
-        content: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: availableColors.map((color) {
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _accentColor = color;
-                  settingsBox.put('accentColor', color.value);
-                });
-                Navigator.pop(context);
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _accentColor == color ? Colors.white : Colors.grey,
-                    width: 2,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
+  void _toggleTheme(bool value) {
+    setState(() => _isDarkMode = value);
+    settingsBox.put('isDarkMode', value);
   }
 
   @override
@@ -125,53 +80,42 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Settings"),
-        backgroundColor: const Color(0xFF1E1E1E),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF121212), Color(0xFF1E1E1E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      appBar: AppBar(title: const Text('Settings')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: SwitchListTile(
+              title: const Text('Dark mode'),
+              subtitle: const Text('Switch between light and dark theme.'),
+              value: _isDarkMode,
+              onChanged: _toggleTheme,
+            ),
           ),
-        ),
-        child: ListView(
-          children: [
-            // 🔐 App Lock Setting
-            SwitchListTile(
-              title: const Text(
-                "App Lock",
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
-              subtitle: const Text(
-                "Lock app with a 4-digit PIN",
-                style: TextStyle(color: Colors.white70),
-              ),
+          const SizedBox(height: 12),
+          Card(
+            child: SwitchListTile(
+              title: const Text('App lock'),
+              subtitle: const Text('Lock app with a 4-digit PIN.'),
               value: _lockEnabled,
               onChanged: _toggleLock,
-              activeThumbColor: _accentColor,
             ),
-
-            const Divider(color: Colors.white24),
-
-            // 🎨 Accent Color Setting
-            ListTile(
-              title: const Text(
-                "App Accent Color",
-                style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: Icon(
+                Icons.verified_user_outlined,
+                color: scheme.primary,
               ),
-              subtitle: const Text(
-                "Customize the color theme",
-                style: TextStyle(color: Colors.white70),
-              ),
-              trailing: CircleAvatar(backgroundColor: _accentColor, radius: 14),
-              onTap: _showColorPicker,
+              title: const Text('Professional theme system'),
+              subtitle: const Text('Custom accent palettes have been removed.'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

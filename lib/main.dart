@@ -30,22 +30,81 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late Box settingsBox;
-  late Color accentColor;
+  late bool _isDarkMode;
 
   @override
   void initState() {
     super.initState();
     settingsBox = Hive.box('settingsBox');
-    accentColor = Color(
-      settingsBox.get('accentColor', defaultValue: Colors.orangeAccent.value),
-    );
+    _isDarkMode = settingsBox.get('isDarkMode', defaultValue: true);
 
-    // Listen for color changes dynamically
-    settingsBox.watch(key: 'accentColor').listen((event) {
+    settingsBox.watch(key: 'isDarkMode').listen((event) {
       setState(() {
-        accentColor = Color(event.value);
+        _isDarkMode = event.value == true;
       });
     });
+  }
+
+  ThemeData _buildLightTheme() {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF1F4D8C),
+      brightness: Brightness.light,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: const Color(0xFFF5F7FB),
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: scheme.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  ThemeData _buildDarkTheme() {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF7AA2F7),
+      brightness: Brightness.dark,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: const Color(0xFF0F1115),
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: scheme.surfaceContainerHigh,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
   }
 
   @override
@@ -53,17 +112,9 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'My Notes App',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.fromSeed(seedColor: accentColor),
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF1E1E1E)),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: accentColor,
-        ),
-        switchTheme: SwitchThemeData(
-          thumbColor: WidgetStateProperty.all(accentColor),
-        ),
-      ),
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
+      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const LockHandler(),
     );
   }

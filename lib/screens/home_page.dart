@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'dart:math';
 import 'note_page.dart';
 import 'about_page.dart';
 import 'settings_page.dart';
@@ -36,19 +35,9 @@ class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late final Box<Note> _notesBox;
-  final Random _random = Random();
   String _searchQuery = '';
 
-  final List<Color> _cardColors = [
-    Colors.purple.shade300,
-    Colors.pink.shade300,
-    Colors.orange.shade300,
-    Colors.teal.shade300,
-    Colors.blue.shade300,
-  ];
-
   late final Box settingsBox;
-  late Color accentColor;
   late Set<dynamic> _pinnedKeys;
   final Set<dynamic> _selectedKeys = <dynamic>{};
   bool _selectionMode = false;
@@ -58,19 +47,9 @@ class _HomePageState extends State<HomePage>
     super.initState();
     _notesBox = Hive.box<Note>('notesBox');
     settingsBox = Hive.box('settingsBox');
-    accentColor = Color(
-      settingsBox.get('accentColor', defaultValue: Colors.orangeAccent.value),
-    );
     _pinnedKeys = Set<dynamic>.from(
       (settingsBox.get('pinnedKeys', defaultValue: <dynamic>[]) as List),
     );
-
-    // Listen to color changes dynamically
-    settingsBox.watch(key: 'accentColor').listen((event) {
-      setState(() {
-        accentColor = Color(event.value);
-      });
-    });
   }
 
   @override
@@ -84,12 +63,16 @@ class _HomePageState extends State<HomePage>
     final filtered = _searchQuery.isEmpty
         ? allNotes
         : allNotes
-            .where(
-              (note) =>
-                  note.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                  note.content.toLowerCase().contains(_searchQuery.toLowerCase()),
-            )
-            .toList();
+              .where(
+                (note) =>
+                    note.title.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ) ||
+                    note.content.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ),
+              )
+              .toList();
 
     // Sort: pinned first, then by createdAt desc
     filtered.sort((a, b) {
@@ -145,7 +128,11 @@ class _HomePageState extends State<HomePage>
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () async {
-            final restored = Note(title: title, content: content, createdAt: createdAt);
+            final restored = Note(
+              title: title,
+              content: content,
+              createdAt: createdAt,
+            );
             final newKey = await _notesBox.add(restored);
             if (wasPinned) {
               setState(() {
@@ -160,12 +147,6 @@ class _HomePageState extends State<HomePage>
         duration: const Duration(seconds: 4),
       ),
     );
-  }
-
-  Future<void> _deleteNoteAt(int index) async {
-    final note = _filteredNotes[index];
-    await note.delete();
-    setState(() {});
   }
 
   Future<void> _openNotePage({Note? note}) async {
@@ -266,15 +247,17 @@ class _HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final notes = _filteredNotes;
+    final totalNotes = _notesBox.length;
+    final pinnedNotes = _pinnedKeys.length;
 
     return Scaffold(
       appBar: AppBar(
         title: _selectionMode
             ? Text('${_selectedKeys.length} selected')
-            : const Text("My Notes"),
-        backgroundColor: const Color(0xFF1E1E1E),
-        iconTheme: const IconThemeData(color: Colors.white),
+            : const Text('My Notes'),
         actions: _selectionMode
             ? [
                 IconButton(
@@ -290,7 +273,10 @@ class _HomePageState extends State<HomePage>
                 IconButton(
                   tooltip: 'Delete',
                   onPressed: _deleteSelected,
-                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.redAccent,
+                  ),
                 ),
                 IconButton(
                   tooltip: 'Cancel',
@@ -301,202 +287,102 @@ class _HomePageState extends State<HomePage>
             : null,
       ),
       drawer: _buildDrawer(context),
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF121212), Color(0xFF1E1E1E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Search notes...',
-                    hintStyle: TextStyle(color: Colors.grey.shade500),
-                    filled: true,
-                    fillColor: Colors.grey.shade900,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricTile(
+                          context: context,
+                          label: 'Total notes',
+                          value: '$totalNotes',
+                          icon: Icons.sticky_note_2_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildMetricTile(
+                          context: context,
+                          label: 'Pinned',
+                          value: '$pinnedNotes',
+                          icon: Icons.push_pin_outlined,
+                        ),
+                      ),
+                    ],
                   ),
-                  onChanged: (value) => setState(() => _searchQuery = value),
                 ),
               ),
-              Expanded(
-                child: notes.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No notes yet.',
-                          style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 18,
-                          ),
-                        ),
-                      )
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final width = constraints.maxWidth;
-                          int crossAxisCount = 2;
-                          if (width > 1200) crossAxisCount = 5;
-                          else if (width > 900) crossAxisCount = 4;
-                          else if (width > 600) crossAxisCount = 3;
-                          return GridView.builder(
-                            padding: const EdgeInsets.all(12),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 3/2,
-                            ),
-                            itemCount: notes.length,
-                            itemBuilder: (context, index) {
-                              final note = notes[index];
-                              final color = _cardColors[_random.nextInt(_cardColors.length)];
-                              final selected = _selectedKeys.contains(note.key);
-
-                              return GestureDetector(
-                                onLongPress: () => _toggleSelection(note),
-                                onTap: () {
-                                  if (_selectionMode) {
-                                    _toggleSelection(note);
-                                  } else {
-                                    _openViewNotePage(note);
-                                  }
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  decoration: BoxDecoration(
-                                    color: color.withOpacity(0.9),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: selected ? accentColor : Colors.transparent,
-                                      width: selected ? 2 : 0,
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              note.title,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 18,
-                                              ),
-                                            ),
-                                          ),
-                                          if (_isPinned(note))
-                                            const Padding(
-                                              padding: EdgeInsets.only(left: 6),
-                                              child: Icon(Icons.push_pin, size: 18, color: Colors.white70),
-                                            ),
-                                          if (!_selectionMode)
-                                            PopupMenuButton<String>(
-                                              padding: EdgeInsets.zero,
-                                              icon: const Icon(Icons.more_vert, color: Colors.white70),
-                                              onSelected: (value) async {
-                                                switch (value) {
-                                                  case 'view':
-                                                    await _openViewNotePage(note);
-                                                    break;
-                                                  case 'edit':
-                                                    await _openNotePage(note: note);
-                                                    break;
-                                                  case 'pin':
-                                                    _togglePin(note);
-                                                    break;
-                                                  case 'delete':
-                                                    await _deleteNoteWithUndo(note);
-                                                    break;
-                                                }
-                                              },
-                                              itemBuilder: (context) => [
-                                                const PopupMenuItem(
-                                                  value: 'view',
-                                                  child: ListTile(
-                                                    leading: Icon(Icons.visibility),
-                                                    title: Text('View'),
-                                                  ),
-                                                ),
-                                                const PopupMenuItem(
-                                                  value: 'edit',
-                                                  child: ListTile(
-                                                    leading: Icon(Icons.edit),
-                                                    title: Text('Edit'),
-                                                  ),
-                                                ),
-                                                PopupMenuItem(
-                                                  value: 'pin',
-                                                  child: ListTile(
-                                                    leading: Icon(_isPinned(note) ? Icons.push_pin : Icons.push_pin_outlined),
-                                                    title: Text(_isPinned(note) ? 'Unpin' : 'Pin'),
-                                                  ),
-                                                ),
-                                                const PopupMenuItem(
-                                                  value: 'delete',
-                                                  child: ListTile(
-                                                    leading: Icon(Icons.delete, color: Colors.redAccent),
-                                                    title: Text('Delete'),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Expanded(
-                                        child: Text(
-                                          note.content,
-                                          maxLines: 5,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            _formatDate(note.createdAt),
-                                            style: const TextStyle(fontSize: 12, color: Colors.white70),
-                                          ),
-                                          if (_selectionMode)
-                                            Icon(
-                                              selected ? Icons.check_circle : Icons.radio_button_unchecked,
-                                              color: selected ? accentColor : Colors.white70,
-                                            ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search notes...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          tooltip: 'Clear search',
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                          icon: const Icon(Icons.close),
+                        )
+                      : null,
+                ),
+                onChanged: (value) => setState(() => _searchQuery = value),
               ),
-            ],
-          ),
+            ),
+            Expanded(
+              child: notes.isEmpty
+                  ? _buildEmptyState(context)
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final width = constraints.maxWidth;
+                        int crossAxisCount = 2;
+                        if (width > 1200) {
+                          crossAxisCount = 5;
+                        } else if (width > 900) {
+                          crossAxisCount = 4;
+                        } else if (width > 600) {
+                          crossAxisCount = 3;
+                        }
+
+                        return GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 1.08,
+                              ),
+                          itemCount: notes.length,
+                          itemBuilder: (context, index) {
+                            final note = notes[index];
+                            final selected = _selectedKeys.contains(note.key);
+                            return _buildNoteCard(
+                              note: note,
+                              selected: selected,
+                              scheme: scheme,
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: accentColor,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add),
         onPressed: () {
           if (_selectionMode) {
             _clearSelection();
@@ -508,59 +394,301 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF121212), Color(0xFF1E1E1E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _buildNoteCard({
+    required Note note,
+    required bool selected,
+    required ColorScheme scheme,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.10),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onLongPress: () => _toggleSelection(note),
+          onTap: () {
+            if (_selectionMode) {
+              _toggleSelection(note);
+            } else {
+              _openViewNotePage(note);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? scheme.primary : scheme.outlineVariant,
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        note.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                    if (_isPinned(note))
+                      Icon(Icons.push_pin, size: 18, color: scheme.primary),
+                    if (!_selectionMode)
+                      PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
+                        onSelected: (value) async {
+                          switch (value) {
+                            case 'view':
+                              await _openViewNotePage(note);
+                              break;
+                            case 'edit':
+                              await _openNotePage(note: note);
+                              break;
+                            case 'pin':
+                              _togglePin(note);
+                              break;
+                            case 'delete':
+                              await _deleteNoteWithUndo(note);
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'view',
+                            child: ListTile(
+                              leading: Icon(Icons.visibility),
+                              title: Text('View'),
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit),
+                              title: Text('Edit'),
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'pin',
+                            child: ListTile(
+                              leading: Icon(
+                                _isPinned(note)
+                                    ? Icons.push_pin
+                                    : Icons.push_pin_outlined,
+                              ),
+                              title: Text(_isPinned(note) ? 'Unpin' : 'Pin'),
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(Icons.delete),
+                              title: Text('Delete'),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Text(
+                    note.content,
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _formatDate(note.createdAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (_selectionMode)
+                      Icon(
+                        selected
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color: selected
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.transparent),
-              child: Text(
-                "Menu",
+      ),
+    );
+  }
+
+  Widget _buildMetricTile({
+    required BuildContext context,
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 20, color: scheme.onPrimaryContainer),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
                 style: TextStyle(
-                  color: Colors.white,
+                  fontSize: 12,
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.note_alt_outlined,
+                color: scheme.onPrimaryContainer,
+                size: 34,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No notes yet',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Capture ideas, tasks, and thoughts in one place.',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _openNotePage,
+              icon: const Icon(Icons.add),
+              label: const Text('Create note'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(color: scheme.surfaceContainerHighest),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                'Menu',
+                style: TextStyle(
+                  color: scheme.onSurface,
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            _drawerTile(
-              icon: Icons.home,
-              title: "Home",
-              onTap: () => Navigator.pop(context),
-            ),
-            _drawerTile(
-              icon: Icons.settings,
-              title: "Settings",
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SettingsPage()),
-                );
-              },
-            ),
-            _drawerTile(
-              icon: Icons.info,
-              title: "About",
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AboutPage()),
-                );
-              },
-            ),
-          ],
-        ),
+          ),
+          _drawerTile(
+            icon: Icons.home,
+            title: 'Home',
+            onTap: () => Navigator.pop(context),
+          ),
+          _drawerTile(
+            icon: Icons.settings,
+            title: 'Settings',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+          ),
+          _drawerTile(
+            icon: Icons.info,
+            title: 'About',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AboutPage()),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -570,12 +698,14 @@ class _HomePageState extends State<HomePage>
     required String title,
     required VoidCallback onTap,
   }) {
+    final scheme = Theme.of(context).colorScheme;
+
     return ListTile(
-      leading: Icon(icon, color: Colors.white),
+      leading: Icon(icon, color: scheme.onSurfaceVariant),
       title: Text(
         title,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: scheme.onSurface,
           fontSize: 18,
           fontWeight: FontWeight.w500,
         ),
