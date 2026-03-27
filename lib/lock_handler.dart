@@ -1,4 +1,6 @@
 // lib/lock_handler.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'screens/home_page.dart';
@@ -15,6 +17,7 @@ class _LockHandlerState extends State<LockHandler> with WidgetsBindingObserver {
   bool _isLocked = false;
   bool _lockEnabled = false;
   late final Box settingsBox;
+  late final StreamSubscription<BoxEvent> _lockWatcher;
 
   @override
   void initState() {
@@ -24,11 +27,24 @@ class _LockHandlerState extends State<LockHandler> with WidgetsBindingObserver {
     // Grab the already opened settings box
     settingsBox = Hive.box('settingsBox');
     _lockEnabled = settingsBox.get('lockEnabled', defaultValue: false);
+    _isLocked = _lockEnabled;
+
+    _lockWatcher = settingsBox.watch(key: 'lockEnabled').listen((event) {
+      final enabled = event.value == true;
+      if (!mounted) return;
+      setState(() {
+        _lockEnabled = enabled;
+        if (!enabled) {
+          _isLocked = false;
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _lockWatcher.cancel();
     super.dispose();
   }
 

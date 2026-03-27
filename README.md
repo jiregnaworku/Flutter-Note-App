@@ -1,6 +1,6 @@
 📝 NotesApp
 
-A beautifully designed, fast, and secure note-taking Flutter app built with ❤️ using Hive for local storage and Lottie animations for delightful visual feedback.
+A beautifully designed, fast, and secure note-taking Flutter app built with Courage and Proud using Hive for local storage and Lottie animations for delightful visual feedback.
 
 🚀 Overview
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:local_auth/local_auth.dart';
 
 class LockScreen extends StatefulWidget {
   final VoidCallback onUnlocked;
@@ -11,13 +12,18 @@ class LockScreen extends StatefulWidget {
 
 class _LockScreenState extends State<LockScreen> {
   final TextEditingController _pinController = TextEditingController();
+  final LocalAuthentication _localAuth = LocalAuthentication();
   late Box settingsBox;
   String _error = '';
+  bool _isAuthenticating = false;
 
   @override
   void initState() {
     super.initState();
     settingsBox = Hive.box('settingsBox');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tryBiometricUnlock();
+    });
   }
 
   void _checkPin() {
@@ -30,6 +36,58 @@ class _LockScreenState extends State<LockScreen> {
       setState(() => _error = 'Incorrect PIN');
       _pinController.clear();
     }
+  }
+
+  Future<void> _tryBiometricUnlock() async {
+    final biometricEnabled =
+        settingsBox.get('biometricEnabled', defaultValue: false) == true;
+    if (!biometricEnabled || _isAuthenticating) return;
+
+    setState(() {
+      _isAuthenticating = true;
+      _error = '';
+    });
+
+    try {
+      final canAuthenticate =
+          await _localAuth.canCheckBiometrics ||
+          await _localAuth.isDeviceSupported();
+      if (!canAuthenticate) {
+        if (!mounted) return;
+        setState(() {
+          _isAuthenticating = false;
+          _error = 'Biometric unavailable. Use PIN.';
+        });
+        return;
+      }
+
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'Authenticate to unlock Notes App',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+
+      if (!mounted) return;
+      setState(() => _isAuthenticating = false);
+
+      if (authenticated) {
+        widget.onUnlocked();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isAuthenticating = false;
+        _error = 'Biometric failed. Use PIN.';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    super.dispose();
   }
 
   @override
@@ -54,6 +112,11 @@ class _LockScreenState extends State<LockScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              if (_isAuthenticating)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: CircularProgressIndicator(color: scheme.primary),
+                ),
               TextField(
                 controller: _pinController,
                 keyboardType: TextInputType.number,
@@ -86,6 +149,12 @@ class _LockScreenState extends State<LockScreen> {
                   'Unlock',
                   style: TextStyle(fontSize: 18, color: scheme.onPrimary),
                 ),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: _isAuthenticating ? null : _tryBiometricUnlock,
+                icon: const Icon(Icons.fingerprint),
+                label: const Text('Use biometric'),
               ),
             ],
           ),
